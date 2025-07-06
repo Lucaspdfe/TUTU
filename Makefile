@@ -36,10 +36,10 @@ $(BUILD_DIR)/kernel.bin: always
 # Clean
 #
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(BUILD_DIR)/*
 
 #
 # Always
 #
 always:
-	mkdir -p $(BUILD_DIR)/*
+	mkdir -p $(BUILD_DIR)
