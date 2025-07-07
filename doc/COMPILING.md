@@ -21,7 +21,7 @@ sudo apt install gcc mtools nasm make -y
 
 ### Arch Linux (or derivatives):
 
-Type this in your command prompt:
+Type this in your terminal:
 
 ```bash
 sudo pacman -S base-devel gcc mtools nasm make
