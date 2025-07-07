@@ -29,7 +29,7 @@ sudo apt install gcc mtools nasm make dosfstools -y
 Type this in your terminal:
 
 ```bash
-sudo pacman -S base-devel gcc mtools nasm make
+sudo pacman -S base-devel gcc mtools nasm make dosfstools
 ```
 
 ## Compiling the OS
