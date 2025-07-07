@@ -1,18 +1,9 @@
-org 0x7C00
+org 0x0
 bits 16
 
 %define ENDL 0x0D, 0x0A
 
 main:
-    ; Setup data segments
-    mov ax, 0
-    mov ds, ax
-    mov es, ax
-
-    ; Setup stack
-    mov ss, ax
-    mov sp, 0x7C00
-
     ; Write "Hello, world!" to the screen
     mov si, msg_hello
     call puts
@@ -46,7 +37,4 @@ puts:
     pop si
     ret
 
-msg_hello: db 'Hello, world!', ENDL, 0
-
-times 510-($-$$) db 0
-dw 0AA55h
+msg_hello: db 'Hello, world from kernel!', ENDL, 0
