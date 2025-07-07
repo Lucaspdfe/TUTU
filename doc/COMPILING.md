@@ -10,8 +10,12 @@ You'll need the following tools installed:
 * `mtools`
 * `nasm`
 * `make`
+* `Open Watcom 2.0`
 
-Install them using your system's package manager:
+Install them using your system's package manager: 
+
+> [!NOTE]
+> For Open Watcom 2.0, you will need to install it from it's [GitHub repository](https://github.com/open-watcom/open-watcom-v2), set it's path to /usr/bin/watcom, enable 16-bit compiling and set the host to linux 32-bits.
 
 ### Debian/Ubuntu:
 
