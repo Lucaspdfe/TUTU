@@ -10,6 +10,7 @@ You'll need the following tools installed:
 * `mtools`
 * `nasm`
 * `make`
+* `dosfstools`
 * `Open Watcom 2.0`
 
 Install them using your system's package manager: 
@@ -20,7 +21,7 @@ Install them using your system's package manager:
 ### Debian/Ubuntu:
 
 ```bash
-sudo apt install gcc mtools nasm make -y
+sudo apt install gcc mtools nasm make dosfstools -y
 ```
 
 ### Arch Linux (or derivatives):
