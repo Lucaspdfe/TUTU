@@ -1,7 +1,7 @@
 #include "stdint.h"
-#include "print.h"
+#include "printf.h"
 
 void _cdecl cstart_(uint16_t bootDrive) {
-    puts("Hello, world from C!\r\n");
+    printf("Test \"%s\" '%c' <0x%x> %i u%u", "Test String", 'H', 16, -15, -15);
     for(;;);
 }
