@@ -5,6 +5,9 @@ BUILD_DIR=build
 .PHONY: all flp kernel bootloader stage1 stage2 always clean tools_fat
 all: clean flp tools_fat
 
+run: $(BUILD_DIR)/main_floppy.img
+	@qemu-system-x86_64 -fda $<
+
 #
 # Floppy Image
 #

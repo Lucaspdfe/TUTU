@@ -13,14 +13,14 @@ You'll need the following tools installed:
 * `dosfstools`
 * `Open Watcom 2.0`
 
-Install them using your system's package manager: 
+Install them using your package manager of choice: 
 
 > [!NOTE]
 > For Open Watcom 2.0, you will need to install it from it's [GitHub repository](https://github.com/open-watcom/open-watcom-v2), enable 16-bit compiling and set the host to linux 32-bits.
 
 ### Debian/Ubuntu:
 
-```bash
+```
 sudo apt install gcc mtools nasm make dosfstools -y
 ```
 
@@ -28,7 +28,7 @@ sudo apt install gcc mtools nasm make dosfstools -y
 
 Type this in your terminal:
 
-```bash
+```
 sudo pacman -S base-devel gcc mtools nasm make dosfstools
 ```
 
@@ -36,7 +36,7 @@ sudo pacman -S base-devel gcc mtools nasm make dosfstools
 
 To compile the operating system, simply run:
 
-```bash
+```
 make
 ```
 
@@ -44,4 +44,12 @@ After a successful build, you'll find the output file here:
 
 ```
 build/main_floppy.img
+```
+
+## Testing
+
+If you want to run the OS, you can install `qemu-system` from your package manager of choice, then run: 
+
+```
+make run
 ```
