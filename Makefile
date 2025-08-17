@@ -11,6 +11,7 @@ $(BUILD_DIR)/floppy.img: bootloader kernel always
 	@mkfs.fat -F 12 -n "TUTU OS" $(BUILD_DIR)/floppy.img
 	@dd if=$(BUILD_DIR)/boot.bin of=$(BUILD_DIR)/floppy.img bs=512 count=1 conv=notrunc
 	@mcopy -i $(BUILD_DIR)/floppy.img $(BUILD_DIR)/kernel.bin ::kernel.bin
+	@mcopy -i $(BUILD_DIR)/floppy.img test.txt ::test.txt
 
 bootloader: $(BUILD_DIR)/boot.bin
 $(BUILD_DIR)/boot.bin: always

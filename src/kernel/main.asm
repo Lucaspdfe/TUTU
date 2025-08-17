@@ -1,13 +1,6 @@
 org 0x0
 bits 16
 
-boot:
-    mov ax, 0
-    mov ds, ax
-    mov es, ax
-    mov ss, ax
-    mov sp, 0x7C00
-    jmp start
 start:
     mov si, msg
     call puts
@@ -48,4 +41,4 @@ puts:
 
     ret
 
-msg: db 'Hello, World!', 0
+msg: db 'Hello, World from KERNEL!!', 0
