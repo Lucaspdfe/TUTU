@@ -84,12 +84,13 @@ main:
     ; BIOS should set DL to drive number
     mov [ebr_drive_number], dl
 
-    ; Read the message_test from the disk using disk_read and print it
-    mov ax, 1
-    mov cl, 1
-    mov bx, buffer
+    mov ax, 1                   ; LBA=1, second sector from disk
+    mov cl, 1                   ; 1 sector to read
+    mov bx, 0x7E00              ; data should be after the bootloader
     call disk_read
-    mov si, buffer
+
+    ; print hello world message
+    mov si, msg_hello
     call puts
 
     cli                         ; disable interrupts, this way CPU can't get out of "halt" state
@@ -227,5 +228,3 @@ msg_read_failed:        db 'Read from disk failed!', ENDL, 0
 
 times 510-($-$$) db 0
 dw 0AA55h
-buffer:
-message_test:           db 'This message was read from outside of the bootloader', ENDL, 0
