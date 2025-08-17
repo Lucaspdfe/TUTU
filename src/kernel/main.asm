@@ -2,6 +2,11 @@ org 0x0
 bits 16
 
 start:
+    ; Clear the screen
+    mov ah, 0
+    mov al, 0x03
+    int 10h
+
     mov si, msg
     call puts
     cli
