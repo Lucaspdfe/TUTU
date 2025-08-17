@@ -41,4 +41,4 @@ puts:
 
     ret
 
-msg: db 'Hello, World from KERNEL!!', 0
+msg: db 'Hello, World from STAGE2!!', 0

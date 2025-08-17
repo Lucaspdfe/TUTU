@@ -5,29 +5,41 @@ BUILD_DIR=build
 all: clean always floppy
 
 floppy: $(BUILD_DIR)/floppy.img
-$(BUILD_DIR)/floppy.img: bootloader kernel always
-	@echo " - Building floppy image ($@)"
-	@dd if=/dev/zero of=$(BUILD_DIR)/floppy.img bs=512 count=2880
-	@mkfs.fat -F 12 -n "TUTU OS" $(BUILD_DIR)/floppy.img
-	@dd if=$(BUILD_DIR)/boot.bin of=$(BUILD_DIR)/floppy.img bs=512 count=1 conv=notrunc
-	@mcopy -i $(BUILD_DIR)/floppy.img $(BUILD_DIR)/kernel.bin ::kernel.bin
-	@mcopy -i $(BUILD_DIR)/floppy.img test.txt ::test.txt
+$(BUILD_DIR)/floppy.img: bootloader kernel
+	@dd if=/dev/zero of=$@ bs=512 count=2880 >/dev/null 2>&1
+	@mkfs.fat -F 12 -n "NBOS" $@ >/dev/null 2>&1
+	@dd if=$(BUILD_DIR)/stage1.bin of=$@ conv=notrunc >/dev/null 2>&1
+	@mcopy -i $@ $(BUILD_DIR)/stage2.bin "::stage2.bin"
+	@mcopy -i $@ $(BUILD_DIR)/kernel.bin "::kernel.bin"
+	@mcopy -i $@ test.txt "::test.txt"
+	@mmd -i $@ "::mydir"
+	@mcopy -i $@ test.txt "::mydir/test.txt"
+	@echo "--> Created: " $@
 
-bootloader: $(BUILD_DIR)/boot.bin
-$(BUILD_DIR)/boot.bin: always
-	@echo " - Building bootloader ($@)"
-	@nasm -f bin $(SRC_DIR)/bootloader/boot.asm -o $(BUILD_DIR)/boot.bin
+bootloader: stage1 stage2
+
+stage1: $(BUILD_DIR)/stage1.bin
+$(BUILD_DIR)/stage1.bin: always
+	@echo " - Building stage1 ($@)"
+	@$(MAKE) -C $(SRC_DIR)/bootloader/stage1 BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
+
+stage2: $(BUILD_DIR)/stage2.bin
+$(BUILD_DIR)/stage2.bin: always
+	@echo " - Building stage2 ($@)"
+	@$(MAKE) -C $(SRC_DIR)/bootloader/stage2 BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 kernel: $(BUILD_DIR)/kernel.bin
 $(BUILD_DIR)/kernel.bin: always
 	@echo " - Building kernel ($@)"
-	@nasm -f bin $(SRC_DIR)/kernel/main.asm -o $(BUILD_DIR)/kernel.bin
+	@$(MAKE) -C $(SRC_DIR)/kernel BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 always:
 	@mkdir -p $(BUILD_DIR)
 
 clean:
-	@rm -rf $(BUILD_DIR)
+	@$(MAKE) -C $(SRC_DIR)/bootloader/stage1 clean BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
+	@$(MAKE) -C $(SRC_DIR)/bootloader/stage2 clean BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
+	@$(MAKE) -C $(SRC_DIR)/kernel clean BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 run: all
 	@qemu-system-x86_64 -fda $(BUILD_DIR)/floppy.img
