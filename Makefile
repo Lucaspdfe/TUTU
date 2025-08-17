@@ -4,16 +4,26 @@ BUILD_DIR=build
 .PHONY: all clean always bootloader floppy run
 all: clean always floppy
 
-floppy: bootloader always
-	@echo " - Building floppy image ($(BUILD_DIR)/floppy.img)"
-	@cp $(BUILD_DIR)/boot.bin $(BUILD_DIR)/floppy.img
+floppy: $(BUILD_DIR)/floppy.img
+$(BUILD_DIR)/floppy.img: bootloader kernel always
+	@echo " - Building floppy image ($@)"
+	@dd if=/dev/zero of=$(BUILD_DIR)/floppy.img bs=512 count=2880
+	@mkfs.fat -F 12 -n "TUTU OS" $(BUILD_DIR)/floppy.img
+	@dd if=$(BUILD_DIR)/boot.bin of=$(BUILD_DIR)/floppy.img bs=512 count=1 conv=notrunc
+	@mcopy -i $(BUILD_DIR)/floppy.img $(BUILD_DIR)/kernel.bin ::kernel.bin
 
-bootloader: $(SRC_DIR)/boot.asm always
-	@echo " - Building bootloader ($(BUILD_DIR)/boot.bin)"
-	@nasm -f bin $< -o $(BUILD_DIR)/boot.bin
+bootloader: $(BUILD_DIR)/boot.bin
+$(BUILD_DIR)/boot.bin: always
+	@echo " - Building bootloader ($@)"
+	@nasm -f bin $(SRC_DIR)/bootloader/boot.asm -o $(BUILD_DIR)/boot.bin
+
+kernel: $(BUILD_DIR)/kernel.bin
+$(BUILD_DIR)/kernel.bin: always
+	@echo " - Building kernel ($@)"
+	@nasm -f bin $(SRC_DIR)/kernel/main.asm -o $(BUILD_DIR)/kernel.bin
 
 always:
-	@mkdir build
+	@mkdir -p $(BUILD_DIR)
 
 clean:
 	@rm -rf $(BUILD_DIR)

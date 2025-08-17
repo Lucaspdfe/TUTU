@@ -1,4 +1,4 @@
-org 0x7C00
+org 0x0
 bits 16
 
 boot:
@@ -49,6 +49,3 @@ puts:
     ret
 
 msg: db 'Hello, World!', 0
-
-times 510-($-$$) db 0
-db 0x55, 0xAA

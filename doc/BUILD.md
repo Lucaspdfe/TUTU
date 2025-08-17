@@ -9,6 +9,7 @@ To build the OS, you'll need to install these packages:
 
 - `make`
 - `nasm`
+- `mtools`
 - `qemu-system-x86_64`
 
 [^1]: Windows nor macOS have been tested, feel free to try them out.
