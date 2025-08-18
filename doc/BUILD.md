@@ -11,8 +11,10 @@ To build the OS, you'll need to install these packages:
 - `nasm`
 - `mtools`
 - `qemu-system-x86_64`
+- `watcom`[^2]
 
 [^1]: Windows nor macOS have been tested, feel free to try them out.
+[^2]: The Watcom compiler is available for download from the [github repository](https://github.com/open-watcom/open-watcom-v2). Make sure to install it with 16 bit support and the host as 32-bits.
 
 ## How to Build
 
