@@ -3,6 +3,12 @@
 
 void putc(char c)
 {
+    if (c == '\n')
+    {
+        x86_Video_WriteCharTeletype('\r', 0);
+        x86_Video_WriteCharTeletype('\n', 0);
+        return;
+    }
     x86_Video_WriteCharTeletype(c, 0);
 }
 
