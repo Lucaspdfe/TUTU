@@ -8,7 +8,7 @@ section _TEXT class=CODE
 ;
 global _x86_Video_WriteCharTeletype
 _x86_Video_WriteCharTeletype:
-    
+
     ; make new call frame
     push bp             ; save old call frame
     mov bp, sp          ; initialize new call frame
@@ -33,4 +33,11 @@ _x86_Video_WriteCharTeletype:
     ; restore old call frame
     mov sp, bp
     pop bp
+    ret
+
+global _x86_Video_ClearScreen
+_x86_Video_ClearScreen:
+    mov ah, 0h
+    mov al, 3h
+    int 10h
     ret

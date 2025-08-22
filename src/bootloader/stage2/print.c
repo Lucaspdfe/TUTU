@@ -1,8 +1,7 @@
-#include "stdio.h"
+#include "print.h"
 #include "x86.h"
 
-void putc(char c)
-{
+void putc(char c) {
     if (c == '\n')
     {
         x86_Video_WriteCharTeletype('\r', 0);
@@ -12,11 +11,14 @@ void putc(char c)
     x86_Video_WriteCharTeletype(c, 0);
 }
 
-void puts(const char* str)
-{
+void puts(const char* str) {
     while(*str)
     {
         putc(*str);
         str++;
     }
+}
+
+void clrscr(void) {
+    x86_Video_ClearScreen();
 }
