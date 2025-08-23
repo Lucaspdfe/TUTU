@@ -42,4 +42,5 @@ clean:
 	@$(MAKE) -C $(SRC_DIR)/kernel clean BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 run: all
+	@echo "--> Running the system..."
 	@qemu-system-x86_64 -drive format=raw,file=build/floppy.img,if=floppy
