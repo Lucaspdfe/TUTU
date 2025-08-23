@@ -14,23 +14,23 @@ $(BUILD_DIR)/floppy.img: bootloader kernel
 	@mcopy -i $@ test.txt "::test.txt"
 	@mmd -i $@ "::mydir"
 	@mcopy -i $@ test.txt "::mydir/test.txt"
-	@echo "--> Created: " $@
+	@echo "--> Final file: " $@
 
 bootloader: stage1 stage2
 
 stage1: $(BUILD_DIR)/stage1.bin
 $(BUILD_DIR)/stage1.bin: always
-	@echo " - Building stage1 ($@)"
+	@echo "- Building stage1 ($@)"
 	@$(MAKE) -C $(SRC_DIR)/bootloader/stage1 BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 stage2: $(BUILD_DIR)/stage2.bin
 $(BUILD_DIR)/stage2.bin: always
-	@echo " - Building stage2 ($@)"
+	@echo "- Building stage2 ($@)"
 	@$(MAKE) -C $(SRC_DIR)/bootloader/stage2 BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 kernel: $(BUILD_DIR)/kernel.bin
 $(BUILD_DIR)/kernel.bin: always
-	@echo " - Building kernel ($@)"
+	@echo "- Building kernel ($@)"
 	@$(MAKE) -C $(SRC_DIR)/kernel BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 always:
@@ -42,4 +42,4 @@ clean:
 	@$(MAKE) -C $(SRC_DIR)/kernel clean BUILD_DIR=$(abspath $(BUILD_DIR)) --no-print-directory
 
 run: all
-	@qemu-system-x86_64 -fda $(BUILD_DIR)/floppy.img
+	@qemu-system-x86_64 -drive format=raw,file=build/floppy.img,if=floppy

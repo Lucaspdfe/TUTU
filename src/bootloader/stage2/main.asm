@@ -21,3 +21,7 @@ entry:
 
     cli
     hlt
+
+; Dummy function to make Watcom happy.
+segment STACK class=STACK
+    resb 1        ; reserve 1 byte just to make it valid
