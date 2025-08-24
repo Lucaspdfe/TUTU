@@ -3,23 +3,27 @@
 ## Prerequisites
 
 - A computer running Linux[^1].
-- Package manager of your choice.
 
-To build the OS, you'll need to install these packages:
+First, install the following dependencies:
 
-- `make`
-- `nasm`
-- `mtools`
-- `qemu-system-x86_64`
-- `watcom`[^2]
+```
+# Ubuntu, Debian:
+$ sudo apt install build-essential bison flex libgmp3-dev libmpc-dev libmpfr-dev texinfo \
+                   nasm mtools qemu-system-x86
+           
+# Fedora:
+$ sudo dnf install gcc gcc-c++ make bison flex gmp-devel libmpc-devel mpfr-devel texinfo \
+                   nasm mtools qemu-system-x86
+```
 
 [^1]: Windows nor macOS have been tested, feel free to try them out.
-[^2]: The Watcom compiler is available for download from the [github repository](https://github.com/open-watcom/open-watcom-v2). Make sure to install it with 16 bit support and the host as 32-bits.
 
 ## How to Build
 
-To build the OS, execute the following command: `make`
+Run `make toolchain`, this should download and build the required tools (binutils and GCC). If you encounter errors during this step, you might have to modify `build_scripts/config.mk` and try a different version of **binutils** and **gcc**. Using the same version as the one bundled with your distribution is your best bet.
+
+Finally, you should be able to run `make`.
 
 ## Running the OS
 
-To run the OS, run the following command: `make run`
+Use `./run.sh` to test your OS using qemu.
