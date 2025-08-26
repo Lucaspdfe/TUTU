@@ -1,4 +1,4 @@
-TOOLCHAIN_PREFIX = $(abspath toolchain/$(TARGET))
+TOOLCHAIN_PREFIX = $(abspath toolchain/$(TARGET)-elf)
 export PATH := $(TOOLCHAIN_PREFIX)/bin:$(PATH)
 
 toolchain: toolchain_binutils toolchain_gcc
@@ -11,7 +11,7 @@ toolchain_binutils: $(BINUTILS_SRC).tar.xz
 	mkdir $(BINUTILS_BUILD)
 	cd $(BINUTILS_BUILD) && ../binutils-$(BINUTILS_VERSION)/configure \
 		--prefix="$(TOOLCHAIN_PREFIX)"	\
-		--target=$(TARGET)				\
+		--target=$(TARGET)-elf			\
 		--with-sysroot					\
 		--disable-nls					\
 		--disable-werror				\
@@ -33,7 +33,7 @@ toolchain_gcc: toolchain_binutils $(GCC_SRC).tar.xz
 	mkdir $(GCC_BUILD)
 	cd $(GCC_BUILD) && ../gcc-$(GCC_VERSION)/configure \
 		--prefix="$(TOOLCHAIN_PREFIX)" 	\
-		--target=$(TARGET)				\
+		--target=$(TARGET)-elf			\
 		--disable-nls					\
 		--enable-languages=c,c++		\
 		--without-headers
