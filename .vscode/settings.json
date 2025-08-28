@@ -5,7 +5,10 @@
         "stdarg.h": "c",
         "stdbool.h": "c",
         "gdt.h": "c",
-        "idt.h": "c"
+        "idt.h": "c",
+        "cstdint": "c",
+        "compare": "c",
+        "internet": "cpp"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

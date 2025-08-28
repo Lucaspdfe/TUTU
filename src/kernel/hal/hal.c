@@ -4,6 +4,7 @@
     #include <arch/i686/gdt.h>
     #include <arch/i686/idt.h>
     #include <arch/i686/isr.h>
+    #include <arch/i686/irq.h>
 #endif
 
 void HAL_Initialize() {
@@ -15,5 +16,7 @@ void HAL_Initialize() {
     printf("IDT initialized.\n");
     i686_ISR_Initialize();
     printf("ISR initialized.\n");
+    i686_IRQ_Initialize();
+    printf("IRQ initialized.\n");
 #endif
 }
