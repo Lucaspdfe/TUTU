@@ -1,6 +1,8 @@
 #include "stdio.h"
+// #if defined(TARGET) && TARGET == i686
 #include <arch/i686/io.h>
-
+#include <arch/i686/pit.h>
+// #endif
 #include <stdarg.h>
 #include <stdbool.h>
 
@@ -36,10 +38,10 @@ void setcursor(int x, int y)
 {
     int pos = y * SCREEN_WIDTH + x;
 
-    i686_outb(0x3D4, 0x0F);
-    i686_outb(0x3D5, (uint8_t)(pos & 0xFF));
-    i686_outb(0x3D4, 0x0E);
-    i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, (uint8_t)(pos & 0xFF));
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
 void clrscr()
@@ -93,6 +95,13 @@ void putc(char c)
             g_ScreenX = 0;
             break;
 
+        case '\b':
+            if (g_ScreenX > 0)
+            {
+                g_ScreenX--;
+                putchr(g_ScreenX, g_ScreenY, '\0');
+            }
+            break;
         default:
             putchr(g_ScreenX, g_ScreenY, c);
             g_ScreenX++;
@@ -312,4 +321,10 @@ void print_buffer(const char* msg, const void* buffer, uint32_t count)
         putc(g_HexChars[u8Buffer[i] & 0xF]);
     }
     puts("\n");
+}
+
+void sleep(int seconds) {
+// #if defined(TARGET) && TARGET == i686
+    i686_PIT_Sleep(seconds * 1000);
+// #endif
 }

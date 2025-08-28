@@ -1,5 +1,6 @@
 #include "key.h"
 #include "irq.h"
+#include "pit.h"
 #include "io.h"
 #include <stddef.h>
 #include <stdio.h>
@@ -11,6 +12,10 @@ char last_key_pressed;
 bool is_key_modified;
 
 static bool shift_pressed = false;
+static unsigned char last_scancode = 0;
+static size_t key_hold_time = 0;
+static const size_t KEY_REPEAT_DELAY = 500; // Delay in milliseconds
+static const size_t KEY_REPEAT_RATE = 50;  // Repeat rate in milliseconds
 
 void i686_KEY_Handler(Registers* regs);
 
@@ -82,27 +87,39 @@ static const char keymap[59][2] = {
 };
 
 void i686_KEY_Handler(Registers* regs) {
-    unsigned char status = inb(KEYBOARD_STATUS);
-    if (status & 0x01) {
-        unsigned char scancode = inb(KEYBOARD_DATA);
+    uint8_t status = inb(KEYBOARD_STATUS);
+    if (status & 0x01) { // Check if data is available
+        uint8_t scancode = inb(KEYBOARD_DATA);
 
-        // Key released: high bit set
-        bool released = scancode & 0x80;
-        unsigned char keycode = scancode & 0x7F;
+        bool key_released = scancode & 0x80;
+        scancode &= 0x7F; // Remove release flag
 
-        // Shift key handling (left shift: 0x2A, right shift: 0x36)
-        if (keycode == 0x2A || keycode == 0x36) {
-            shift_pressed = !released;
-            return;
+        if (scancode == 0x2A || scancode == 0x36) { // Shift keys
+            shift_pressed = !key_released;
+        } else if (!key_released && scancode < sizeof(keymap)/sizeof(keymap[0])) {
+            char key = shift_pressed ? keymap[scancode][1] : keymap[scancode][0];
+            if (key) {
+                last_key_pressed = key;
+                is_key_modified = true;
+                last_scancode = scancode;
+                key_hold_time = 0; // Reset hold time on new key press
+            }
         }
 
-        if (!released) {
-            char ch = 0;
-            if (keycode < sizeof(keymap)/sizeof(keymap[0])) {
-                ch = keymap[keycode][shift_pressed ? 1 : 0];
+        // Handle key repeat
+        if (!key_released && scancode == last_scancode) {
+            key_hold_time += 10; // Assume this handler is called every ~10ms
+            if (key_hold_time >= KEY_REPEAT_DELAY) {
+                size_t repeat_intervals = (key_hold_time - KEY_REPEAT_DELAY) / KEY_REPEAT_RATE;
+                if (repeat_intervals > 0) {
+                    last_key_pressed = shift_pressed ? keymap[scancode][1] : keymap[scancode][0];
+                    is_key_modified = true;
+                }
             }
-            last_key_pressed = ch;
-            is_key_modified = true;
+        } else if (key_released && scancode == last_scancode) {
+            // Reset on key release
+            last_scancode = 0;
+            key_hold_time = 0;
         }
     }
 }

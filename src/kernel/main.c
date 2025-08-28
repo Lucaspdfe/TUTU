@@ -10,11 +10,6 @@ extern uint8_t __end;
 
 void crash_me();
 
-void timer(Registers* regs)
-{
-    // printf(".");
-}
-
 void __attribute__((section(".entry"))) start(uint16_t bootDrive)
 {
     memset(&__bss_start, 0, (&__end) - (&__bss_start));
@@ -24,9 +19,12 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
     // Make this a comment if you want to keep HAL Debug output.
     clrscr();
 
-    i686_IRQ_RegisterHandler(0, timer);
-
-    printf("%s", i686_KEY_ReadString());
+    printf("Welcome to TUTU OS!\n");
+    printf("Write anything you want.\n");
+    i686_KEY_ReadString();
+    printf("Waiting 1 second...\n");
+    sleep(1);
+    printf("Waited 1 second.\n");
 
     //crash_me();
 
