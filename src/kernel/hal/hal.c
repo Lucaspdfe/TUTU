@@ -5,6 +5,7 @@
     #include <arch/i686/idt.h>
     #include <arch/i686/isr.h>
     #include <arch/i686/irq.h>
+    #include <arch/i686/key.h>
 #endif
 
 void HAL_Initialize() {
@@ -18,5 +19,7 @@ void HAL_Initialize() {
     printf("ISR initialized.\n");
     i686_IRQ_Initialize();
     printf("IRQ initialized.\n");
+    i686_KEY_Initialize();
+    printf("Keyboard initialized.\n");
 #endif
 }

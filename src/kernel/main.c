@@ -3,6 +3,7 @@
 #include "memory.h"
 #include <hal/hal.h>
 #include <arch/i686/irq.h>
+#include <arch/i686/key.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
@@ -11,7 +12,7 @@ void crash_me();
 
 void timer(Registers* regs)
 {
-    printf(".");
+    // printf(".");
 }
 
 void __attribute__((section(".entry"))) start(uint16_t bootDrive)
@@ -23,9 +24,9 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
     // Make this a comment if you want to keep HAL Debug output.
     clrscr();
 
-    printf("Hello from kernel!\n");
-
     i686_IRQ_RegisterHandler(0, timer);
+
+    printf("%s", i686_KEY_ReadString());
 
     //crash_me();
 
