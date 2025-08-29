@@ -5,11 +5,12 @@
 #include "fat.h"
 #include "memdefs.h"
 #include "memory.h"
+#include "vbe.h"
 
 uint8_t* KernelLoadBuffer = (uint8_t*)MEMORY_LOAD_KERNEL;
 uint8_t* Kernel = (uint8_t*)MEMORY_KERNEL_ADDR;
 
-typedef void (*KernelStart)();
+typedef void (*KernelStart)(VbeModeInfo* vbeModeInfo);
 
 void __attribute__((cdecl)) start(uint16_t bootDrive)
 {
@@ -39,9 +40,40 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
     }
     FAT_Close(fd);
 
+    const int desiredWidth = 1024;
+    const int desiredHeight = 768;
+    const int desiredBpp = 32;
+    uint16_t pickedMode = 0xffff;
+
+    // Initialize graphics 
+    VbeInfoBlock* info = (VbeInfoBlock*)MEMORY_VESA_INFO;
+    VbeModeInfo* modeInfo = (VbeModeInfo*)MEMORY_MODE_INFO;
+    if (VBE_GetControllerInfo(info)) {
+        uint16_t* mode = (uint16_t*)(info->VideoModePtr);
+        for (int i = 0; mode[i] != 0xFFFF; i++) {
+            if (!VBE_GetModeInfo(mode[i], modeInfo)) {
+                printf("Can't get mode info %x :(\n", mode[i]);
+                continue;
+            }
+            bool hasFB = (modeInfo->attributes & 0x90) == 0x90;
+
+            if (hasFB && modeInfo->width == desiredWidth && modeInfo->height == desiredHeight && modeInfo->bpp == desiredBpp) {
+                pickedMode = mode[i];
+                break;
+            }
+        }
+
+        if (pickedMode != 0xFFFF) {
+            VBE_SetMode(pickedMode);
+        }
+    }
+    else {
+        printf("No VBE extensions :(\n");
+    }
+
     // execute kernel
     KernelStart kernelStart = (KernelStart)Kernel;
-    kernelStart();
+    kernelStart(modeInfo); // Pass the VBE mode info to the kernel
 
 end:
     for (;;);
