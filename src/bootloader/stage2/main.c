@@ -40,8 +40,8 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
     }
     FAT_Close(fd);
 
-    const int desiredWidth = 1024;
-    const int desiredHeight = 768;
+    const int desiredWidth = 1280;
+    const int desiredHeight = 720;
     const int desiredBpp = 32;
     uint16_t pickedMode = 0xffff;
 
