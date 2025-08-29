@@ -10,7 +10,10 @@
         "compare": "c",
         "internet": "cpp",
         "key.h": "c",
-        "io.h": "c"
+        "io.h": "c",
+        "vbe.h": "c",
+        "*.inc": "c",
+        "random": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

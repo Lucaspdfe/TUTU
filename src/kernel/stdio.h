@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
+#include <arch/i686/vbe.h>
 
+void STDIO_Initialize(VbeModeInfo* modeInfo);
 void clrscr();
 void putc(char c);
 void puts(const char* str);

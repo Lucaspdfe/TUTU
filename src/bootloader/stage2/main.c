@@ -10,9 +10,7 @@
 uint8_t* KernelLoadBuffer = (uint8_t*)MEMORY_LOAD_KERNEL;
 uint8_t* Kernel = (uint8_t*)MEMORY_KERNEL_ADDR;
 
-typedef void (*KernelStart)();
-
-#define COLOR(r,g,b) ((b) | (g << 8) | (r << 16))
+typedef void (*KernelStart)(VbeModeInfo* vbeModeInfo);
 
 void __attribute__((cdecl)) start(uint16_t bootDrive)
 {
@@ -65,15 +63,8 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
             }
         }
 
-        if (pickedMode != 0xFFFF && VBE_SetMode(pickedMode)) {
-            uint32_t* fb = (uint32_t*)(modeInfo->framebuffer);
-            int w = modeInfo->width;
-            int h = modeInfo->height;
-            for (int y = 0; y < h; y++) {
-                for (int x = 0; x < w; x++) {
-                    fb[y * modeInfo->pitch / 4 + x] = COLOR(x, y, x+y);
-                }
-            }
+        if (pickedMode != 0xFFFF) {
+            VBE_SetMode(pickedMode);
         }
     }
     else {
@@ -82,7 +73,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
 
     // execute kernel
     KernelStart kernelStart = (KernelStart)Kernel;
-    //kernelStart();
+    kernelStart(modeInfo); // Pass the VBE mode info to the kernel
 
 end:
     for (;;);

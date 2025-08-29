@@ -3,16 +3,19 @@
 #include "memory.h"
 #include <hal/hal.h>
 #include <arch/i686/irq.h>
-#include <arch/i686/key.h>
+#include <arch/i686/vbe.h>
+#include <arch/i686/disp.h>
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
 
 void crash_me();
 
-void __attribute__((section(".entry"))) start(uint16_t bootDrive)
+void __attribute__((section(".entry"))) start(VbeModeInfo* modeInfo)
 {
     memset(&__bss_start, 0, (&__end) - (&__bss_start));
+
+    STDIO_Initialize(modeInfo);
 
     HAL_Initialize();
 
