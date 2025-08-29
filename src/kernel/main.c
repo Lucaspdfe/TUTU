@@ -19,9 +19,11 @@ void __attribute__((section(".entry"))) start(uint16_t bootDrive)
     // Make this a comment if you want to keep HAL Debug output.
     clrscr();
 
+    const char* str;
+
     printf("Welcome to TUTU OS!\n");
-    printf("Write anything you want.\n");
-    i686_KEY_ReadString();
+    scanf("Write anything you want\n%s", str);
+    printf("You wrote: %s\n", str);
     printf("Waiting 1 second...\n");
     sleep(1);
     printf("Waited 1 second.\n");

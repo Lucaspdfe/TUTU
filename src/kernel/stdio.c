@@ -2,6 +2,7 @@
 // #if defined(TARGET) && TARGET == i686
 #include <arch/i686/io.h>
 #include <arch/i686/pit.h>
+#include <arch/i686/key.h>
 // #endif
 #include <stdarg.h>
 #include <stdbool.h>
@@ -327,4 +328,146 @@ void sleep(int seconds) {
 // #if defined(TARGET) && TARGET == i686
     i686_PIT_Sleep(seconds * 1000);
 // #endif
+}
+
+#define IS_SPACE(ch) ((ch)==' ' || (ch)=='\t' || (ch)=='\r' || (ch)=='\n')
+#define IS_DIGIT(ch) ((ch) >= '0' && (ch) <= '9')
+
+/* --- line reader (until Enter) --- */
+static int readline(char *buf, int maxlen) {
+    int len = 0;
+    for (;;) {
+        int c = i686_KEY_ReadKey();
+        if (c == '\r') c = '\n';
+
+        if (c == '\n') {
+            putc('\n');
+            buf[len] = '\0';
+            return len;
+        }
+
+        if (c == 8 || c == 127) { /* backspace */
+            if (len > 0) {
+                len--;
+                putc('\b'); putc(' '); putc('\b');
+            }
+            continue;
+        }
+
+        if (len+1 < maxlen) {
+            buf[len++] = (char)c;
+            putc((char)c);
+        }
+    }
+}
+
+/* --- integer parsing --- */
+static int parse_uint(const char *s, unsigned long *out, int base) {
+    unsigned long v=0; int d, any=0;
+    if (base==0) {
+        if (s[0]=='0' && (s[1]=='x'||s[1]=='X')) { base=16; s+=2; }
+        else if (s[0]=='0' && s[1]) { base=8; s++; }
+        else base=10;
+    }
+    for (; *s; s++) {
+        if (*s>='0'&&*s<='9') d=*s-'0';
+        else if (*s>='a'&&*s<='f') d=*s-'a'+10;
+        else if (*s>='A'&&*s<='F') d=*s-'A'+10;
+        else return 0;
+        if (d>=base) return 0;
+        v = v*base+d; any=1;
+    }
+    if (!any) return 0;
+    *out=v; return 1;
+}
+
+static int parse_sint(const char *s, long *out) {
+    int neg=0; if (*s=='-'||*s=='+'){neg=(*s=='-');s++;}
+    unsigned long u;
+    if (!parse_uint(s,&u,10)) return 0;
+    *out=neg?-(long)u:(long)u; return 1;
+}
+
+/* --- token splitter --- */
+static int next_token(const char **p, char *out, int maxlen) {
+    const char *s = *p;
+    while (*s && IS_SPACE(*s)) s++;
+    if (!*s) return 0;
+
+    int len=0;
+    while (*s && !IS_SPACE(*s)) {
+        if (len+1 < maxlen) out[len++] = *s;
+        s++;
+    }
+    out[len] = '\0';
+    *p = s;
+    return 1;
+}
+
+/* --- main scanf-like --- */
+int kscanf(const char *fmt, ...) {
+    va_list ap;
+    int assigned=0;
+
+    va_start(ap, fmt);
+
+    while (*fmt) {
+        if (*fmt != '%') {
+            /* print literal text as prompt */
+            putc(*fmt);
+            fmt++;
+            continue;
+        }
+
+        fmt++; /* skip % */
+
+        /* read a fresh line for each specifier */
+        char line[256];
+        readline(line, sizeof line);
+        const char *lp = line;
+
+        if (*fmt == 's') {
+            char *dst = va_arg(ap, char *);
+            int i = 0;
+
+            /* Copy everything until newline or end of buffer */
+            while (*lp && *lp != '\n' && i < 255) {
+                dst[i++] = *lp++;
+            }
+            dst[i] = '\0';
+        
+            assigned++;
+            fmt++;
+            continue;
+        }
+
+        if (*fmt == 'c') {
+            char *dst = va_arg(ap,char*);
+            if (*lp) {
+                *dst = *lp;
+                assigned++;
+            }
+            fmt++; continue;
+        }
+
+        if (*fmt == 'd' || *fmt == 'i') {
+            char tok[64]; long v;
+            if (!next_token(&lp, tok, sizeof tok)) break;
+            if (!parse_sint(tok,&v)) break;
+            *va_arg(ap,int*)=(int)v;
+            assigned++; fmt++; continue;
+        }
+
+        if (*fmt=='u' || *fmt=='x' || *fmt=='X' || *fmt=='o') {
+            char tok[64]; unsigned long v;
+            int base=(*fmt=='u'?10:(*fmt=='o'?8:16));
+            if (!next_token(&lp, tok, sizeof tok)) break;
+            if (!parse_uint(tok,&v,base)) break;
+            *va_arg(ap,unsigned int*)=(unsigned int)v;
+            assigned++; fmt++; continue;
+        }
+    }
+
+    va_end(ap);
+    return assigned;
 }
