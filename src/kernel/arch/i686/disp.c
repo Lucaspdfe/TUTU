@@ -7,7 +7,7 @@ void i686_DISP_Initialize(VbeModeInfo* modeInfo) {
     g_modeInfo = modeInfo;
 }
 
-void i686_DISP_PutChar(char c, int x, int y) {
+void i686_DISP_PutChar(char c, int x, int y, uint32_t color) {
     if (!g_modeInfo || c > 0x7F) { // Only handle ASCII range (0x00 - 0x7F)
         return; // Invalid mode or unsupported character
     }
@@ -19,12 +19,13 @@ void i686_DISP_PutChar(char c, int x, int y) {
     for (int row = 0; row < 8; row++) {
         uint8_t rowData = fontData[row];
         for (int col = 0; col < 8; col++) {
-            uint32_t color = (rowData & (1 << col)) ? 0xFFFFFF : 0x000000; // White or black pixel
-            // Draw a 2x2 block for each pixel to double the size
-            framebuffer[(y + row * 2) * pitch + (x + col * 2)] = color;
-            framebuffer[(y + row * 2) * pitch + (x + col * 2 + 1)] = color;
-            framebuffer[(y + row * 2 + 1) * pitch + (x + col * 2)] = color;
-            framebuffer[(y + row * 2 + 1) * pitch + (x + col * 2 + 1)] = color;
+            if (rowData & (1 << col)) {  // Only draw if the bit is set
+                // Draw a 2x2 block for each "on" pixel
+                framebuffer[(y + row * 2) * pitch + (x + col * 2)] = color;
+                framebuffer[(y + row * 2) * pitch + (x + col * 2 + 1)] = color;
+                framebuffer[(y + row * 2 + 1) * pitch + (x + col * 2)] = color;
+                framebuffer[(y + row * 2 + 1) * pitch + (x + col * 2 + 1)] = color;
+            }
         }
     }
 }
@@ -84,6 +85,76 @@ void i686_DISP_DrawBitmap(int x, int y, int w, int h, const uint16_t* bitmap) {
             uint32_t color = 0xFF000000 | (r << 16) | (g << 8) | b;
 
             framebuffer[(y + row) * pitch + (x + col)] = color;
+        }
+    }
+}
+
+void i686_DISP_DrawRect(int x, int y, int w, int h, uint32_t color) {
+    if (!g_modeInfo) {
+        return; // Invalid mode
+    }
+
+    uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
+    int pitch = g_modeInfo->pitch / 4; // Pitch in pixels (32-bit color)
+
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            framebuffer[(y + row) * pitch + (x + col)] = color;
+        }
+    }
+}
+
+#include <stdint.h>
+#include <stdbool.h>
+
+void i686_DISP_DrawRoundedRect(int x, int y, int w, int h, int radius, uint32_t color) {
+    if (!g_modeInfo) {
+        return; // Invalid mode
+    }
+
+    uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
+    int pitch = g_modeInfo->pitch / 4; // Pitch in pixels (32-bit color)
+
+    int r2 = radius * radius; // radius squared for circle checks
+
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            int px = col;
+            int py = row;
+
+            bool draw = true;
+
+            // Top-left corner check
+            if (px < radius && py < radius) {
+                int dx = radius - px;
+                int dy = radius - py;
+                if (dx*dx + dy*dy > r2) draw = false;
+            }
+
+            // Top-right corner check
+            if (px >= w - radius && py < radius) {
+                int dx = px - (w - radius - 1);
+                int dy = radius - py;
+                if (dx*dx + dy*dy > r2) draw = false;
+            }
+
+            // Bottom-left corner check
+            if (px < radius && py >= h - radius) {
+                int dx = radius - px;
+                int dy = py - (h - radius - 1);
+                if (dx*dx + dy*dy > r2) draw = false;
+            }
+
+            // Bottom-right corner check
+            if (px >= w - radius && py >= h - radius) {
+                int dx = px - (w - radius - 1);
+                int dy = py - (h - radius - 1);
+                if (dx*dx + dy*dy > r2) draw = false;
+            }
+
+            if (draw) {
+                framebuffer[(y + row) * pitch + (x + col)] = color;
+            }
         }
     }
 }

@@ -17,11 +17,50 @@ static size_t key_hold_time = 0;
 static const size_t KEY_REPEAT_DELAY = 500; // Delay in milliseconds
 static const size_t KEY_REPEAT_RATE = 50;  // Repeat rate in milliseconds
 
+static bool extended_code = false;  // track 0xE0 prefix
+static uint8_t last_arrow_scancode = 0;
+
 void i686_KEY_Handler(Registers* regs);
 
 void i686_KEY_Initialize() {
     i686_IRQ_RegisterHandler(1, i686_KEY_Handler);
 }
+
+bool i686_KEY_HasChar() {
+    return is_key_modified;
+}
+
+char i686_KEY_WaitChar() {
+    is_key_modified = false;
+    while (!is_key_modified) {
+        // spin until a normal character is pressed
+        // arrow keys and 0s will be ignored
+    }
+    return last_key_pressed;
+}
+
+// Returns 0 if no arrow key pressed
+uint8_t i686_KEY_GetArrow() {
+    uint8_t arrow = last_arrow_scancode;
+    last_arrow_scancode = 0;  // reset after reading
+    return arrow;
+}
+
+// Returns 0 if no printable key pressed
+char i686_KEY_GetChar() {
+    if (!is_key_modified) return 0;
+    is_key_modified = false;
+    return last_key_pressed;
+}
+
+
+static const char ext_keymap[128] = {
+    [KEY_UP]    = 0x80, // assign custom codes above ASCII
+    [KEY_DOWN]  = 0x81,
+    [KEY_LEFT]  = 0x82,
+    [KEY_RIGHT] = 0x83,
+};
+
 
 // Simple US QWERTY keymap for scan codes 0x01-0x3A
 static const char keymap[59][2] = {
@@ -86,14 +125,46 @@ static const char keymap[59][2] = {
     {0, 0},    // 0x3A CapsLock
 };
 
+// Wait for one arrow key, return its scancode (0x48, 0x50, 0x4B, 0x4D)
+uint8_t i686_KEY_WaitArrow() {
+    last_arrow_scancode = 0;
+    while (last_arrow_scancode == 0) {
+        // spin until an arrow key is captured
+    }
+    return last_arrow_scancode;
+}
+
 void i686_KEY_Handler(Registers* regs) {
     uint8_t status = inb(KEYBOARD_STATUS);
-    if (status & 0x01) { // Check if data is available
+    if (status & 0x01) {
         uint8_t scancode = inb(KEYBOARD_DATA);
 
-        bool key_released = scancode & 0x80;
-        scancode &= 0x7F; // Remove release flag
+        // Check for extended prefix (0xE0)
+        if (scancode == 0xE0) {
+            extended_code = true;
+            return;
+        }
 
+        bool key_released = scancode & 0x80;
+        scancode &= 0x7F;
+
+        if (extended_code) {
+            extended_code = false;
+            if (!key_released) {
+                // Arrow keys only
+                switch (scancode) {
+                    case KEY_UP:
+                    case KEY_DOWN:
+                    case KEY_LEFT:
+                    case KEY_RIGHT:
+                        last_arrow_scancode = scancode; // store scancode
+                        break;
+                }
+            }
+            return; // don’t process further as normal key
+        }
+
+        // --- normal keys (same as your old code) ---
         if (scancode == 0x2A || scancode == 0x36) { // Shift keys
             shift_pressed = !key_released;
         } else if (!key_released && scancode < sizeof(keymap)/sizeof(keymap[0])) {
@@ -102,13 +173,13 @@ void i686_KEY_Handler(Registers* regs) {
                 last_key_pressed = key;
                 is_key_modified = true;
                 last_scancode = scancode;
-                key_hold_time = 0; // Reset hold time on new key press
+                key_hold_time = 0;
             }
         }
 
         // Handle key repeat
         if (!key_released && scancode == last_scancode) {
-            key_hold_time += 10; // Assume this handler is called every ~10ms
+            key_hold_time += 10;
             if (key_hold_time >= KEY_REPEAT_DELAY) {
                 size_t repeat_intervals = (key_hold_time - KEY_REPEAT_DELAY) / KEY_REPEAT_RATE;
                 if (repeat_intervals > 0) {
@@ -117,7 +188,6 @@ void i686_KEY_Handler(Registers* regs) {
                 }
             }
         } else if (key_released && scancode == last_scancode) {
-            // Reset on key release
             last_scancode = 0;
             key_hold_time = 0;
         }

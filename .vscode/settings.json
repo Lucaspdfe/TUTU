@@ -13,7 +13,9 @@
         "io.h": "c",
         "vbe.h": "c",
         "*.inc": "c",
-        "random": "c"
+        "random": "c",
+        "disp.h": "c",
+        "irq.h": "c"
     },
     "C_Cpp.errorSquiggles": "disabled"
 }

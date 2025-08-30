@@ -24,6 +24,12 @@ void STDIO_Initialize(VbeModeInfo* modeInfo)
     SCREEN_HEIGHT = height;
 }
 
+void drawBitmap(int width, int height, const uint16_t* bitmap) {
+    i686_DISP_DrawBitmap(g_ScreenX, g_ScreenY, width, height, bitmap);
+    g_ScreenY += height;
+    g_ScreenX += width;
+}
+
 void clrscr()
 {
     i686_DISP_ClearScreen();
@@ -52,11 +58,11 @@ void putc(char c)
             if (g_ScreenX > 0)
             {
                 g_ScreenX -= 16;
-                i686_DISP_PutChar('\0', g_ScreenX, g_ScreenY);
+                i686_DISP_DrawRect(g_ScreenX, g_ScreenY, 16, 16, DISP_COLOR_BLACK);
             }
             break;
         default:
-            i686_DISP_PutChar(c, g_ScreenX, g_ScreenY);
+            i686_DISP_PutChar(c, g_ScreenX, g_ScreenY, DISP_COLOR_WHITE);
             g_ScreenX += 16;
             break;
     }

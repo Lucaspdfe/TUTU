@@ -4,6 +4,7 @@
 
 void STDIO_Initialize(VbeModeInfo* modeInfo);
 void clrscr();
+void drawBitmap(int width, int height, const uint16_t* bitmap);
 void putc(char c);
 void puts(const char* str);
 void printf(const char* fmt, ...);
