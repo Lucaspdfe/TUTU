@@ -1,3 +1,4 @@
+#include "scheduler.h"
 #include "key.h"
 #include "irq.h"
 #include "pit.h"
@@ -135,6 +136,7 @@ uint8_t i686_KEY_WaitArrow() {
 }
 
 void i686_KEY_Handler(Registers* regs) {
+    Scheduler_OnTickISR();
     uint8_t status = inb(KEYBOARD_STATUS);
     if (status & 0x01) {
         uint8_t scancode = inb(KEYBOARD_DATA);

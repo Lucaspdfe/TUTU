@@ -1,77 +1,141 @@
 #include "stdio.h"
-// #if defined(TARGET) && TARGET == i686
-#include <arch/i686/io.h>
-#include <arch/i686/pit.h>
-#include <arch/i686/key.h>
-#include <arch/i686/vbe.h>
-#include <arch/i686/disp.h>
-// #endif
 #include <stdarg.h>
 #include <stdbool.h>
 
+// Screen size in pixels (filled by HAL)
 unsigned SCREEN_WIDTH = 80;
 unsigned SCREEN_HEIGHT = 25;
 
-int g_ScreenX = 0, g_ScreenY = 0;
+static int g_ScreenX = 0, g_ScreenY = 0;
+static int g_NewlineX = 0;     // left margin in pixels
+static int g_MaxSize = 0;      // usable line width in pixels (from g_NewlineX)
+static int g_Multiplier = 1;   // text scale
+static uint32_t g_Color = DISP_COLOR_WHITE;
 
-void STDIO_Initialize(VbeModeInfo* modeInfo)
-{
-    i686_DISP_Initialize(modeInfo);
+// Convenience: character cell size in pixels at current scale
+#define CHAR_W (8 * g_Multiplier)
+#define CHAR_H (8 * g_Multiplier)
 
+// API
+void setMaxSize(int px);
+void setNewline(int x);
+void setTextScale(int mult);
+
+// Optional: background color for erasing (match your theme)
+#ifndef TTY_BG
+#define TTY_BG DISP_COLOR_BLACK
+#endif
+
+void STDIO_Initialize(void) {
     int width, height;
-    i686_DISP_GetSize(&width, &height);
-    SCREEN_WIDTH = width;
-    SCREEN_HEIGHT = height;
+    HAL_DISP_GetSize(&width, &height);
+    SCREEN_WIDTH = (unsigned)width;
+    SCREEN_HEIGHT = (unsigned)height;
+
+    g_NewlineX = 0;
+    setMaxSize(width);     // full width usable by default
+    setTextScale(1);
 }
 
-void drawBitmap(int width, int height, const uint16_t* bitmap) {
-    i686_DISP_DrawBitmap(g_ScreenX, g_ScreenY, width, height, bitmap);
-    g_ScreenY += height;
-    g_ScreenX += width;
+void setMaxSize(int px) {
+    // usable line width from g_NewlineX
+    g_MaxSize = (px < 0) ? 0 : px;
 }
 
-void clrscr()
-{
-    i686_DISP_ClearScreen();
-    g_ScreenX = 0;
+void setNewline(int x) {
+    g_NewlineX = (x < 0) ? 0 : x;
+    // Keep cursor at/after new margin
+    if (g_ScreenX < g_NewlineX) g_ScreenX = g_NewlineX;
+}
+
+void setTextScale(int mult) {
+    if (mult < 1) mult = 1;
+    g_Multiplier = mult;
+}
+
+void setColor(uint32_t color) {
+    g_Color = color;
+}
+
+void clrscr(void) {
+    HAL_DISP_ClearScreen();
+    g_ScreenX = g_NewlineX;
     g_ScreenY = 0;
 }
 
-void putc(char c)
-{
-    switch (c)
-    {
+void gotoXY(int x, int y) {
+    g_ScreenX = x;
+    g_ScreenY = y;
+}
+
+void getXY(int* x, int* y) {
+    if (x) *x = g_ScreenX;
+    if (y) *y = g_ScreenY;
+}
+
+/* Draw a bitmap "inline" (like a large character):
+   advances X by width; does NOT change Y. */
+void drawBitmap(int width, int height, const unsigned long* bitmap) {
+    HAL_DISP_DrawBitmap(g_ScreenX, g_ScreenY, width, height, bitmap);
+    g_ScreenX += width;
+}
+
+/* Draw a bitmap as a block element: places it at current X/Y,
+   then moves to the next line (Y += height) and returns to left margin. */
+void drawBitmapBlock(int width, int height, const unsigned long* bitmap) {
+    HAL_DISP_DrawBitmap(g_ScreenX, g_ScreenY, width, height, bitmap);
+    g_ScreenY += height;
+    g_ScreenX = g_NewlineX;
+}
+
+static void newline_internal(void) {
+    g_ScreenX = g_NewlineX;
+    g_ScreenY += CHAR_H;
+}
+
+void putc(char c) {
+    switch (c) {
         case '\n':
-            g_ScreenX = 0;
-            g_ScreenY += 16;
-            break;
-    
-        case '\t':
-            g_ScreenX = (g_ScreenX + 16) & ~7;
+            newline_internal();
             break;
 
+        case '\t': {
+            // Tab stop every 8 columns (configurable); columns scale with CHAR_W
+            const int tabStopPx = 8 * CHAR_W;
+            int offsetInLine = g_ScreenX - g_NewlineX;
+            if (offsetInLine < 0) offsetInLine = 0;
+            int toNext = tabStopPx - (offsetInLine % tabStopPx);
+            if (toNext == 0) toNext = tabStopPx;
+            g_ScreenX += toNext;
+        } break;
+
         case '\r':
-            g_ScreenX = 0;
+            g_ScreenX = g_NewlineX;
             break;
 
         case '\b':
-            if (g_ScreenX > 0)
-            {
-                g_ScreenX -= 16;
-                i686_DISP_DrawRect(g_ScreenX, g_ScreenY, 16, 16, DISP_COLOR_BLACK);
+            if (g_ScreenX > g_NewlineX) {
+                g_ScreenX -= CHAR_W;
+                // Erase the previous cell
+                HAL_DISP_DrawRect(g_ScreenX, g_ScreenY, CHAR_W, CHAR_H, TTY_BG);
             }
             break;
+
         default:
-            i686_DISP_PutChar(c, g_ScreenX, g_ScreenY, DISP_COLOR_WHITE);
-            g_ScreenX += 16;
+            // Draw with the current scale
+            HAL_DISP_PutChar(c, g_ScreenX, g_ScreenY, DISP_COLOR_WHITE, g_Multiplier);
+            g_ScreenX += CHAR_W;
             break;
     }
 
-    if (g_ScreenX >= SCREEN_WIDTH)
-    {
-        g_ScreenY += 16;
-        g_ScreenX = 0;
+    // Soft wrap when we would exceed usable width
+    // (use '>=' and include the next cell width to avoid clipping)
+    if (g_ScreenX + CHAR_W > g_NewlineX + g_MaxSize) {
+        newline_internal();
     }
+
+    // Optional: clamp to screen bottom (no scroll in this snippet)
+    // if (g_ScreenY + CHAR_H > (int)SCREEN_HEIGHT) { /* implement scrolling or clamp */ }
 }
 
 void puts(const char* str)
@@ -280,7 +344,7 @@ void print_buffer(const char* msg, const void* buffer, uint32_t count)
 
 void sleep(int seconds) {
 // #if defined(TARGET) && TARGET == i686
-    i686_PIT_Sleep(seconds * 1000);
+    HAL_TIMER_Sleep(seconds * 1000);
 // #endif
 }
 
@@ -291,7 +355,7 @@ void sleep(int seconds) {
 static int readline(char *buf, int maxlen) {
     int len = 0;
     for (;;) {
-        int c = i686_KEY_ReadKey();
+        int c = HAL_KEY_ReadChar();
         if (c == '\r') c = '\n';
 
         if (c == '\n') {

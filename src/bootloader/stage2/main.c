@@ -10,7 +10,7 @@
 uint8_t* KernelLoadBuffer = (uint8_t*)MEMORY_LOAD_KERNEL;
 uint8_t* Kernel = (uint8_t*)MEMORY_KERNEL_ADDR;
 
-typedef void (*KernelStart)(VbeModeInfo* vbeModeInfo);
+typedef void (*KernelStart)(VbeModeInfo*);
 
 void __attribute__((cdecl)) start(uint16_t bootDrive)
 {
@@ -40,8 +40,8 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
     }
     FAT_Close(fd);
 
-    const int desiredWidth = 640;
-    const int desiredHeight = 480;
+    const int desiredWidth = 1024;
+    const int desiredHeight = 768;
     const int desiredBpp = 32;
     uint16_t pickedMode = 0xffff;
 
@@ -69,7 +69,7 @@ void __attribute__((cdecl)) start(uint16_t bootDrive)
     }
     else {
         printf("No VBE extensions :(\n");
-    }
+    } 
 
     // execute kernel
     KernelStart kernelStart = (KernelStart)Kernel;

@@ -1,3 +1,4 @@
+#include "scheduler.h"
 #include "pit.h"
 #include "irq.h"
 #include "io.h"
@@ -5,6 +6,7 @@
 uint64_t pit_ticks = 0;
 
 void i686_PIT_Handler(Registers* regs) {
+    Scheduler_OnTickISR();
     pit_ticks++;
 }
 

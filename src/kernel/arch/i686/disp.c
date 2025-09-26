@@ -3,11 +3,16 @@
 
 VbeModeInfo* g_modeInfo;
 
+void i686_DISP_PassVBEInfo(VbeModeInfo* modeinfo);
 void i686_DISP_Initialize(VbeModeInfo* modeInfo) {
-    g_modeInfo = modeInfo;
+    i686_DISP_PassVBEInfo(modeInfo);
 }
 
-void i686_DISP_PutChar(char c, int x, int y, uint32_t color) {
+void i686_DISP_PassVBEInfo(VbeModeInfo* modeinfo) {
+    g_modeInfo = modeinfo;
+}
+
+void i686_DISP_PutChar(char c, int x, int y, uint32_t color, int sizeMultiplier) {
     if (!g_modeInfo || c > 0x7F) { // Only handle ASCII range (0x00 - 0x7F)
         return; // Invalid mode or unsupported character
     }
@@ -20,14 +25,30 @@ void i686_DISP_PutChar(char c, int x, int y, uint32_t color) {
         uint8_t rowData = fontData[row];
         for (int col = 0; col < 8; col++) {
             if (rowData & (1 << col)) {  // Only draw if the bit is set
-                // Draw a 2x2 block for each "on" pixel
-                framebuffer[(y + row * 2) * pitch + (x + col * 2)] = color;
-                framebuffer[(y + row * 2) * pitch + (x + col * 2 + 1)] = color;
-                framebuffer[(y + row * 2 + 1) * pitch + (x + col * 2)] = color;
-                framebuffer[(y + row * 2 + 1) * pitch + (x + col * 2 + 1)] = color;
+                // Draw pixel with size multiplier
+                for (int dy = 0; dy < sizeMultiplier; dy++) {
+                    for (int dx = 0; dx < sizeMultiplier; dx++) {
+                        int drawX = x + col * sizeMultiplier + dx;
+                        int drawY = y + row * sizeMultiplier + dy;
+                        if (drawX >= 0 && drawX < g_modeInfo->width && drawY >= 0 && drawY < g_modeInfo->height) {
+                            framebuffer[drawY * pitch + drawX] = color;
+                        }
+                    }
+                }
             }
         }
     }
+}
+
+void i686_DISP_PutPixel(int x, int y, uint32_t color) {
+    if (!g_modeInfo) {
+        return; // Invalid mode
+    }
+
+    uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
+    int pitch = g_modeInfo->pitch / 4; // Pitch in pixels (divide by 4 for 32-bit color)
+
+    framebuffer[y * pitch + x] = color;
 }
 
 void i686_DISP_ClearScreen() {
@@ -57,11 +78,11 @@ void i686_DISP_GetSize(int* width, int* height) {
 /**
  * Draws a bitmap at (x, y) with width w and height h.
  * The bitmap must be in row-major order with a pitch of w pixels per row.
- * Each pixel in the bitmap must be RGB565 (16-bit).
+ * Each pixel in the bitmap must be RGB888 (32-bit).
  */
-void i686_DISP_DrawBitmap(int x, int y, int w, int h, const uint16_t* bitmap) {
-    if (!g_modeInfo || !bitmap) {
-        return; // Invalid mode or bitmap
+void i686_DISP_DrawBitmap(int x, int y, int w, int h, const unsigned long* bitmap) {
+    if (!g_modeInfo) {
+        return; // Invalid mode
     }
 
     uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
@@ -69,25 +90,86 @@ void i686_DISP_DrawBitmap(int x, int y, int w, int h, const uint16_t* bitmap) {
 
     for (int row = 0; row < h; row++) {
         for (int col = 0; col < w; col++) {
-            uint16_t pixel565 = bitmap[row * w + col];
-
-            // Extract RGB565 components
-            uint8_t r = (pixel565 >> 11) & 0x1F;
-            uint8_t g = (pixel565 >> 5)  & 0x3F;
-            uint8_t b =  pixel565        & 0x1F;
-
-            // Scale to 8-bit
-            r = (r * 255) / 31;
-            g = (g * 255) / 63;
-            b = (b * 255) / 31;
-
-            // Convert to ARGB8888 (alpha=0xFF)
-            uint32_t color = 0xFF000000 | (r << 16) | (g << 8) | b;
-
-            framebuffer[(y + row) * pitch + (x + col)] = color;
+            framebuffer[(y + row) * pitch + (x + col)] = bitmap[row * w + col];
         }
     }
 }
+
+void i686_DISP_DrawBitmapScaled(int x, int y, int w, int h, const unsigned long* bitmap, int scale) {
+    if (!g_modeInfo || scale <= 0) {
+        return; // Invalid mode or scale
+    }
+
+    uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
+    int pitch = g_modeInfo->pitch / 4; // Pitch in pixels (32-bit color)
+
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            uint32_t pixel = bitmap[row * w + col];
+
+            // Draw this pixel as a scale x scale block
+            for (int dy = 0; dy < scale; dy++) {
+                for (int dx = 0; dx < scale; dx++) {
+                    int drawX = x + col * scale + dx;
+                    int drawY = y + row * scale + dy;
+
+                    if (drawX >= 0 && drawX < g_modeInfo->width &&
+                        drawY >= 0 && drawY < g_modeInfo->height) {
+                        framebuffer[drawY * pitch + drawX] = pixel;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void i686_DISP_DrawBitmapTransparent(int x, int y, int w, int h, const unsigned long* bitmap, uint32_t transparentColor) {
+    if (!g_modeInfo) {
+        return; // Invalid mode
+    }
+
+    uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
+    int pitch = g_modeInfo->pitch / 4; // Pitch in pixels (32-bit color)
+
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            uint32_t pixel = bitmap[row * w + col];
+            if (pixel != transparentColor) { // Only draw if not the transparent color
+                framebuffer[(y + row) * pitch + (x + col)] = pixel;
+            }
+        }
+    }
+}
+
+void i686_DISP_DrawBitmapScaledTransparent(int x, int y, int w, int h, const unsigned long* bitmap, int scale, uint32_t transparentColor) {
+    if (!g_modeInfo || scale <= 0) {
+        return; // Invalid mode or scale
+    }
+
+    uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
+    int pitch = g_modeInfo->pitch / 4; // Pitch in pixels (32-bit color)
+
+    for (int row = 0; row < h; row++) {
+        for (int col = 0; col < w; col++) {
+            uint32_t pixel = bitmap[row * w + col];
+            if (pixel == transparentColor) continue;
+
+            // Draw this pixel as a scale x scale block
+            for (int dy = 0; dy < scale; dy++) {
+                for (int dx = 0; dx < scale; dx++) {
+                    int drawX = x + col * scale + dx;
+                    int drawY = y + row * scale + dy;
+
+                    if (drawX >= 0 && drawX < g_modeInfo->width &&
+                        drawY >= 0 && drawY < g_modeInfo->height) {
+                        framebuffer[drawY * pitch + drawX] = pixel;
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 void i686_DISP_DrawRect(int x, int y, int w, int h, uint32_t color) {
     if (!g_modeInfo) {
@@ -158,3 +240,15 @@ void i686_DISP_DrawRoundedRect(int x, int y, int w, int h, int radius, uint32_t 
         }
     }
 }
+
+uint32_t i686_DISP_GetPixel(int x, int y) {
+    if (!g_modeInfo) {
+        return 0; // Invalid mode
+    }
+
+    uint32_t* framebuffer = (uint32_t*)g_modeInfo->framebuffer;
+    int pitch = g_modeInfo->pitch / 4; // Pitch in pixels (32-bit color)
+
+    return framebuffer[y * pitch + x];
+}
+

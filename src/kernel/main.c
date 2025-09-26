@@ -1,121 +1,85 @@
-#include <stdint.h>
 #include "stdio.h"
-#include "memory.h"
-#include <hal/hal.h>
-#include <arch/i686/irq.h>
-#include <arch/i686/vbe.h>
-#include <arch/i686/disp.h>
-#include <arch/i686/key.h>   // for i686_KEY_WaitArrow() + KEY_UP/DOWN/LEFT/RIGHT
+#include "hal/hal.h"
+#include "icons.h"
+#include <stdint.h>
+#include <stdbool.h>
 
-extern uint8_t __bss_start;
-extern uint8_t __end;
+#define SCREEN_WIDTH 1024
+#define SCREEN_HEIGHT 768
+#define BG_COLOR (uint32_t)0x001F1F1F
+#define DOCK_COLOR (uint32_t)0x000F0F0F
+#define DOCK_HEIGHT 40
 
-#define MAX_INPUT_LEN 128
+int dockApps = 0;
 
-static void drawWindow(VbeModeInfo* modeInfo, int x, int y, int w, int h, const char* inputText) {
-    // Window body
-    i686_DISP_DrawRect(x, y, w, h, DISP_COLOR_DGRAY);
+typedef struct {
+    const char* name;
+    const unsigned long* bitmap;
+    uint32_t color;
+    bool isUsed;
+} App;
 
-    // Title bar
-    i686_DISP_DrawRect(x, y, w, 30, DISP_COLOR_LGRAY);
+App apps[10];
 
-    // Title text
-    const char* title = "VERSION";
-    int titleX = x + 10;
-    int titleY = y + 8;
-    for (const char* p = title; *p; p++) {
-        i686_DISP_PutChar(*p, titleX, titleY, DISP_COLOR_BLACK);
-        titleX += 16;
-    }
-
-    // Version text
-    const char* version = "Version 1.4.5";
-    int versionX = x + 10;
-    int versionY = y + 50;
-    for (const char* p = version; *p; p++) {
-        i686_DISP_PutChar(*p, versionX, versionY, DISP_COLOR_WHITE);
-        versionX += 16;
-    }
-
-    // Draw input text inside the window
-    int inputX = x + 10;
-    int inputY = versionY + 30;
-    for (const char* p = inputText; *p; p++) {
-        i686_DISP_PutChar(*p, inputX, inputY, DISP_COLOR_WHITE);
-        inputX += 16;
-        if (inputX + 16 > x + w) { // wrap to next line if needed
-            inputX = x + 10;
-            inputY += 16;
-        }
-    }
+void DrawDock() {
+    int scrW, scrH;
+    HAL_DISP_GetSize(&scrW, &scrH);
+    HAL_DISP_DrawRect(scrW, scrH - DOCK_HEIGHT, scrW, DOCK_HEIGHT, DOCK_COLOR);
 }
 
+void DrawDockApps(const unsigned long* bitmap) {
+    int scrW, scrH;
+    HAL_DISP_GetSize(&scrW, &scrH);
+    HAL_DISP_DrawBitmapScaled(3+(35*dockApps),scrH-40+5,16,16,bitmap,2);
+    dockApps++;
+}
 
-void __attribute__((section(".entry"))) start(VbeModeInfo* modeInfo)
+void AddApp(const char* name,
+            const unsigned long* bitmap,
+            uint32_t color) 
 {
-    memset(&__bss_start, 0, (&__end) - (&__bss_start));
-    STDIO_Initialize(modeInfo);
-    HAL_Initialize();
+    
+}
 
-    clrscr();
+void DrawBg() {
+    int scrW, scrH;
+    HAL_DISP_GetSize(&scrW, &scrH);
+    HAL_DISP_DrawRect(0, 0, scrW, scrH, 0x001F1F1F);
+}
 
-    // Background + dock
-    i686_DISP_DrawRect(0, 0, modeInfo->width, modeInfo->height, DISP_COLOR_GRAY);
-    i686_DISP_DrawRoundedRect(20, modeInfo->height - 50 - 20,
-                              modeInfo->width - 40, 50, 10, DISP_COLOR_LGRAY);
+void main() {
+    DrawBg();
 
-    int winWidth  = modeInfo->width / 2;
-    int winHeight = modeInfo->height / 2;
-    int winX = (modeInfo->width - winWidth) / 2 - 40;
-    int winY = (modeInfo->height - winHeight) / 2 - 40;
+    // Draw Apps
+    HAL_DISP_DrawBitmapScaled(3,SCREEN_HEIGHT-40+5,16,16,bitmapterminal,2);
+    HAL_DISP_DrawBitmapScaled(3 + 35,SCREEN_HEIGHT-40+5,16,16,bitmapnotepad,2);
 
-    char inputText[MAX_INPUT_LEN] = {0};
-    int inputLen = 0;
+    // Draw Windows
+    int windowTermX = 100;
+    int windowTermY = 100;
+    uint32_t windowTermColor = 0x002F002F;
+    HAL_DISP_DrawRect(windowTermX, windowTermY, 200, 150, 0x000F0F0F);
+    HAL_DISP_DrawRect(windowTermX + 1, windowTermY + 20 + 1, 200 - 2, 130 - 2, windowTermColor);
+    HAL_DISP_DrawBitmap(windowTermX + 3, windowTermY + 3, 16, 16, bitmapterminal);
+    gotoXY(windowTermX + 3 + 20, windowTermY + 3);
+    setTextScale(2);
+    const char* termName = "Terminal";
+    printf(termName);
+    setTextScale(1);
+    gotoXY(windowTermX, windowTermY + 20);
+    setMaxSize((windowTermX + 200) - windowTermX);
+    setNewline(windowTermX);
+    printf("This is only a visual representation. This is not a working example.");
+    setMaxSize(SCREEN_WIDTH);
 
-    drawWindow(modeInfo, winX, winY, winWidth, winHeight, inputText);
-
-    for (;;) {
-        int oldX = winX, oldY = winY;
-
-        // Poll arrow key (non-blocking)
-        uint8_t arrow = i686_KEY_GetArrow();
-        switch (arrow) {
-            case KEY_UP:    winY -= 10; break;
-            case KEY_DOWN:  winY += 10; break;
-            case KEY_LEFT:  winX -= 10; break;
-            case KEY_RIGHT: winX += 10; break;
-        }
-
-        // Clamp window position
-        if (winX < 0) winX = 0;
-        if (winY < 0) winY = 0;
-        if (winX + winWidth > modeInfo->width)  winX = modeInfo->width - winWidth;
-        if (winY + winHeight > modeInfo->height) winY = modeInfo->height - winHeight;
-
-        // Poll character key (non-blocking)
-        char ch = i686_KEY_GetChar();
-        if (ch) {
-            if (ch == '\b') {
-                if (inputLen > 0) inputText[--inputLen] = '\0';
-            } else if (ch == '\n') {
-                inputLen = 0;
-                inputText[0] = '\0';
-            } else if (ch >= 32 && ch <= 126 && inputLen < MAX_INPUT_LEN - 1) {
-                inputText[inputLen++] = ch;
-                inputText[inputLen] = '\0';
-            }
-        }
-
-        // Redraw window only if moved or typed
-        if (oldX != winX || oldY != winY || ch) {
-            // Erase old window
-            i686_DISP_DrawRect(oldX, oldY, winWidth, winHeight, DISP_COLOR_GRAY);
-            // Restore dock
-            i686_DISP_DrawRoundedRect(20, modeInfo->height - 50 - 20,
-                                      modeInfo->width - 40, 50, 20, DISP_COLOR_LGRAY);
-
-            // Draw new window
-            drawWindow(modeInfo, winX, winY, winWidth, winHeight, inputText);
-        }
-    }
+    int windowNoteX = 300;
+    int windowNoteY = 300;
+    uint32_t windowNoteColor = 0x00F0F0F0;
+    HAL_DISP_DrawRect(windowNoteX, windowNoteY, 200, 150, 0x000F0F0F);
+    HAL_DISP_DrawRect(windowNoteX + 1, windowNoteY + 20 + 1, 200 - 2, 130 - 2, windowNoteColor);
+    HAL_DISP_DrawBitmap(windowNoteX + 3, windowNoteY + 3, 16, 16, bitmapnotepad);
+    gotoXY(windowNoteX + 20, windowNoteY);
+    setTextScale(2);
+    const char* noteName = "Notepad";
+    printf(noteName);
 }
